@@ -1,0 +1,27 @@
+{
+  "name": "cbi-contracts",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "clean": "rm -r artifacts cache"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@nomiclabs/hardhat-ethers": "^2.0.5",
+    "@nomiclabs/hardhat-etherscan": "^2.1.7",
+    "@nomiclabs/hardhat-waffle": "^2.0.2",
+    "@nomiclabs/hardhat-web3": "^2.0.0",
+    "@openzeppelin/test-helpers": "^0.5.15",
+    "chai": "^4.3.6",
+    "ethereum-waffle": "^3.4.0",
+    "ethers": "^5.5.4",
+    "hardhat": "^2.8.4",
+    "web3": "^1.6.0"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^4.5.0",
+    "keccak": "^3.0.2",
+    "rlp": "^3.0.0"
+  }
+}
