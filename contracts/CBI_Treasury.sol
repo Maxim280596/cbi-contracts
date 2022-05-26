@@ -4,20 +4,18 @@ pragma solidity 0.8.10;
 
 import "./interfaces/IUniswapV2Router.sol";
 import "./interfaces/IERC20.sol";
-import "@openzeppelin/contracts/security/Pausable.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "./helpers/Rescue.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 
-contract CBI_Treasury is Ownable, Pausable, ReentrancyGuard {
+contract CBI_Treasury is Ownable, Rescue {
     using Address for address;
 
     IUniswapV2Router public swapRouter;
     IERC20 public cbiToken;
     IERC20 public usdtToken;
+    address public admin; // contract admin address
 
-    uint256 public withdrawalFee = 5; // withdrawal fee
-    address public feeRecipient; // withdrawal fee recipient
     mapping(address => uint256) public withdrawNonces; // withdrawal nonces
 
     bytes32 public immutable DOMAIN_SEPARATOR;
@@ -32,6 +30,11 @@ contract CBI_Treasury is Ownable, Pausable, ReentrancyGuard {
         address user,
         uint256 indexed userId
     );
+    event CellCBI(
+        uint256 indexed cbiAmount,
+        uint256 indexed usdtAMount,
+        address user
+    );
     event ReplenishCBI(
         uint256 indexed cbiAmount,
         address user,
@@ -42,30 +45,23 @@ contract CBI_Treasury is Ownable, Pausable, ReentrancyGuard {
         address user,
         uint256 indexed userId
     );
-    event WithdrawalFeesPayments(
-        uint256 indexed cbiAmount,
-        address indexed feesRecipient
-    );
-    event RescueToken(address to, address token, uint256 amount);
-    event RescueFTM(address to, uint256 amount);
-    event UpdateWithdravalFeesPercent(uint256 newFeesPercent);
-    event UpdateFeeRecipient(address newFeeRecipient);
+    event UpdateContractAdmin(address newAdmin);
 
     constructor(
         address _swapRouter, // SpookySwapRouter address
         address _cbiToken,   // CBI token address
         address _usdtToken,  // USDT token address
-        address _feeRecipient// Withdrawal fee recipient wallet address
+        address _admin      // admin address
     ) {
         require(Address.isContract(_swapRouter), "CBI_Treasury: Not contract");
         require(Address.isContract(_cbiToken), "CBI_Treasury: Not contract");
         require(Address.isContract(_usdtToken), "CBI_Treasury: Not contract");
-        require(_feeRecipient != address(0), "CBI_Treasury: Null address");
+        require(_admin != address(0), "CBI_Treasury: Null address");
 
         swapRouter = IUniswapV2Router(_swapRouter);
         cbiToken = IERC20(_cbiToken);
         usdtToken = IERC20(_usdtToken);
-        feeRecipient = _feeRecipient;
+        admin = _admin;
 
         uint256 chainId = block.chainid;
 
@@ -87,6 +83,11 @@ contract CBI_Treasury is Ownable, Pausable, ReentrancyGuard {
 
     receive() external payable {}
 
+    modifier onlyAdmin {
+        require(msg.sender == admin, "Ownable: Caller is not the owner");
+        _;
+    }
+
     //==================================== CBI_Treasury external functions ==============================================================
 
     /**
@@ -96,7 +97,7 @@ contract CBI_Treasury is Ownable, Pausable, ReentrancyGuard {
     */
     function purchaseCBI(uint256 amount, uint256 userId) external {
         require(amount > 0, "CBI_Treasury: Zero amount USDT");
-        usdtToken.transferFrom(msg.sender, address(this), amount);
+        require(usdtBalance() >= amount, "CBI_Treasury: Not enough balance CBI");
         address[] memory path = new address[](2);
         path[0] = address(usdtToken);
         path[1] = address(cbiToken);
@@ -105,11 +106,33 @@ contract CBI_Treasury is Ownable, Pausable, ReentrancyGuard {
             amount,
             0,
             path,
-            address(msg.sender),
+            address(this),
             block.timestamp
         );
 
         emit PurchaseCBI(amount, swapAmounts[1], msg.sender, userId);
+    }
+
+    /**
+    @dev The function exchanges the CBI token for USDT. OnlyAdmin can call.
+    @param amount CBI token swap amount.
+    */
+    function cellCBI(uint256 amount) external onlyAdmin {
+        require(amount > 0, "CBI_Treasury: Zero amount CBI");
+        require(cbiBalance() >= amount, "CBI_Treasury: Not enough balance CBI");
+        address[] memory path = new address[](2);
+        path[0] = address(cbiToken);
+        path[1] = address(usdtToken);
+
+        uint256[] memory swapAmounts = swapRouter.swapExactTokensForTokens(
+            amount,
+            0,
+            path,
+            address(this),
+            block.timestamp
+        );
+
+        emit CellCBI(swapAmounts[1], amount, msg.sender);
     }
 
     /**
@@ -159,7 +182,7 @@ contract CBI_Treasury is Ownable, Pausable, ReentrancyGuard {
 
         address recoveredAddress = ecrecover(digest, v, r, s);
         require(
-            recoveredAddress != address(0) && recoveredAddress == owner(),
+            recoveredAddress != address(0) && (recoveredAddress == getAdmin() || recoveredAddress == owner()),
             "CBI_Treasury: INVALID_SIGNATURE"
         );
 
@@ -182,6 +205,10 @@ contract CBI_Treasury is Ownable, Pausable, ReentrancyGuard {
         return cbiToken.balanceOf(address(this));
     }
 
+    function getAdmin() public view returns (address) {
+        return admin;
+    }
+
 //==================================== CBI_Treasury internal functions ==============================================================
     /**
     @dev Helper internal function for withdrawing user CBI tokens from Treasury contract.
@@ -197,18 +224,8 @@ contract CBI_Treasury is Ownable, Pausable, ReentrancyGuard {
         require(amount > 0, "CBI_Treasury: Zero amount");
         require(cbiBalance() >= amount, "CBI_Treasury: Not enough balance CBI");
 
-        uint256 feesAmount = withdrawalFee > 0
-            ? (amount * withdrawalFee) / 100
-            : 0;
-        uint256 cbiTransferAmount = amount - withdrawalFee;
-
-        if (feesAmount > 0) {
-            cbiToken.transfer(feeRecipient, feesAmount);
-            emit WithdrawalFeesPayments(feesAmount, owner());
-        }
-
-        cbiToken.transfer(user, cbiTransferAmount);
-        emit WithdrawCBI(cbiTransferAmount, user, userId);
+        cbiToken.transfer(user, amount);
+        emit WithdrawCBI(amount, user, userId);
     }
 
     // ============================================ Owner functions ===============================================
@@ -226,69 +243,14 @@ contract CBI_Treasury is Ownable, Pausable, ReentrancyGuard {
     ) external onlyOwner {
         _withdrawCBI(user, amount, userId);
     }
-
     /**
-    @dev Reserve function for rescue others tokens. Only the owner can call.
-    @param amount token amount.
-    @param tokenAddress token address.
-    @param to address for withdrawal.
+    @dev function performs contract administrator updates. Only the owner can call.
+    @param newAdmin new admin wallet address.
     */
-    function rescue(
-        address to,
-        address tokenAddress,
-        uint256 amount
-    ) external onlyOwner {
-        require(
-            to != address(0),
-            "CBI_Treasury: Cannot rescue to the zero address"
-        );
-        require(amount > 0, "CBI_Treasury: Cannot rescue 0");
-
-        IERC20(tokenAddress).transfer(to, amount);
-        emit RescueToken(to, address(tokenAddress), amount);
-    }
-
-    /**
-    @dev Reserve function for rescue FTM. Only the owner can call.
-    @param amount FTM amount.
-    @param to address for withdrawal.
-    */
-    function rescueFTM(address payable to, uint256 amount) external onlyOwner {
-        require(
-            to != address(0),
-            "CBI_Treasury: Cannot rescue to the zero address"
-        );
-        require(amount > 0, "CBI_Treasury: Cannot rescue 0");
-
-        to.transfer(amount);
-        emit RescueFTM(to, amount);
-    }
-
-    /**
-     * @dev Updates withdrawal fee amount.
-     * @param newFeesPercent new withdrawal fee amount.
-     * Only owner can call this function.
-     */
-    function updateFeesPercent(uint256 newFeesPercent) external onlyOwner {
-        require(
-            newFeesPercent < 100,
-            "CBI_Treasury: Cannot be more than 100 percent"
-        );
-        withdrawalFee = newFeesPercent;
-        emit UpdateWithdravalFeesPercent(newFeesPercent);
-    }
-
-    /**
-     * @dev Updates fee recipient.
-     * @param newFeeRecipient new withdrawal fee recipient address
-     * Only owner can call this function..
-     */
-    function updateFeeRecipient(address newFeeRecipient) external onlyOwner {
-        require(
-            newFeeRecipient != address(0),
-            "CBI_Treasury: Null address cannot be fee recipient"
-        );
-        feeRecipient = newFeeRecipient;
-        emit UpdateFeeRecipient(newFeeRecipient);
+    function updateContractAdmin(address newAdmin) external onlyOwner {
+        require(newAdmin != address(0), "CBI_Treasury: Null address");
+        require(newAdmin != admin, "CBI_Treasury: new admin equal to the current admin");
+        admin = newAdmin;
+        emit UpdateContractAdmin(newAdmin);
     }
 }

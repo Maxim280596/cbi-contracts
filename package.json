@@ -3,7 +3,9 @@
   "scripts": {
     "compile": "hardhat compile",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "clean": "rm -r artifacts cache"
+    "clean": "rm -r artifacts cache",
+    "flat-treasury": "npx hardhat flatten ./contracts/CBI_Treasury.sol > ./contracts/FlatTreasury.sol"
+
   },
   "author": "",
   "license": "ISC",
