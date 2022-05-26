@@ -1,9 +1,12 @@
+// SPDX-License-Identifier: MIT
 pragma solidity 0.8.10;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "../interfaces/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 contract Rescue is Ownable {
+    using SafeERC20 for IERC20;
     event RescueToken(address to, address token, uint256 amount);
     event RescueFTM(address to, uint256 amount);
 
@@ -26,7 +29,7 @@ contract Rescue is Ownable {
         );
         require(amount > 0, "CBI_Rescue: Cannot rescue 0");
 
-        IERC20(tokenAddress).transfer(to, amount);
+        IERC20(tokenAddress).safeTransfer(to, amount);
         emit RescueToken(to, address(tokenAddress), amount);
     }
 

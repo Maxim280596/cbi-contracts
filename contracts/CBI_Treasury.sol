@@ -3,12 +3,14 @@
 pragma solidity 0.8.10;
 
 import "./interfaces/IUniswapV2Router.sol";
-import "./interfaces/IERC20.sol";
 import "./helpers/Rescue.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 contract CBI_Treasury is Ownable, Rescue {
+    using SafeERC20 for IERC20;
     using Address for address;
 
     IUniswapV2Router public swapRouter;
@@ -77,14 +79,14 @@ contract CBI_Treasury is Ownable, Rescue {
             )
         );
 
-        IERC20(_cbiToken).approve(_swapRouter, type(uint256).max);
-        IERC20(_usdtToken).approve(_swapRouter, type(uint256).max);
+        IERC20(_cbiToken).safeApprove(_swapRouter, type(uint256).max);
+        IERC20(_usdtToken).safeApprove(_swapRouter, type(uint256).max);
     }
 
     receive() external payable {}
 
     modifier onlyAdmin {
-        require(msg.sender == admin, "Ownable: Caller is not the owner");
+        require(msg.sender == admin, "Ownable: Caller is not the admin");
         _;
     }
 
@@ -142,7 +144,7 @@ contract CBI_Treasury is Ownable, Rescue {
     */
     function replenishCBI(uint256 userId, uint256 amount) external {
         require(amount > 0, "CBI_Treasury: Zero amount");
-        cbiToken.transferFrom(msg.sender, address(this), amount);
+        cbiToken.safeTransferFrom(msg.sender, address(this), amount);
         emit ReplenishCBI(amount, msg.sender, userId);
     }
 
@@ -224,7 +226,7 @@ contract CBI_Treasury is Ownable, Rescue {
         require(amount > 0, "CBI_Treasury: Zero amount");
         require(cbiBalance() >= amount, "CBI_Treasury: Not enough balance CBI");
 
-        cbiToken.transfer(user, amount);
+        cbiToken.safeTransfer(user, amount);
         emit WithdrawCBI(amount, user, userId);
     }
 

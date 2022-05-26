@@ -4,8 +4,7 @@ pragma solidity 0.8.10;
 
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "./interfaces/IERC20.sol";
-
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract CBI_ERC20 is IERC20, Ownable, Pausable {
     mapping(address => uint256) private _balances;
@@ -23,12 +22,10 @@ contract CBI_ERC20 is IERC20, Ownable, Pausable {
         _mint(owner(), totalSupply_);
     }
 
-    receive() payable external {}
-
     /**
      * @dev Returns the name of the token.
      */
-    function name() public view virtual override returns (string memory) {
+    function name() public view virtual returns (string memory) {
         return _name;
     }
 
@@ -36,7 +33,7 @@ contract CBI_ERC20 is IERC20, Ownable, Pausable {
      * @dev Returns the symbol of the token, usually a shorter version of the
      * name.
      */
-    function symbol() public view virtual override returns (string memory) {
+    function symbol() public view virtual returns (string memory) {
         return _symbol;
     }
 
@@ -53,7 +50,7 @@ contract CBI_ERC20 is IERC20, Ownable, Pausable {
      * no way affects any of the arithmetic of the contract, including
      * {IERC20-balanceOf} and {IERC20-transfer}.
      */
-    function decimals() public view virtual override returns (uint8) {
+    function decimals() public view virtual returns (uint8) {
         return _decimals;
     }
 
@@ -78,7 +75,7 @@ contract CBI_ERC20 is IERC20, Ownable, Pausable {
         return _allowances[owner][spender];
     }
 
-    function getOwner() public override view returns (address) {
+    function getOwner() public view returns (address) {
         return owner();
     }
 
