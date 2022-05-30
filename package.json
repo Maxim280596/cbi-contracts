@@ -7,6 +7,7 @@
     "test-cbi": "npx hardhat test ./test/cbiToken.js",
     "clean": "rm -r artifacts cache",
     "flat-treasury": "npx hardhat flatten ./contracts/CBI_Treasury.sol > ./contracts/FlatTreasury.sol",
+    "flat-cbi": "npx hardhat flatten ./contracts/CBI_ERC20.sol > ./contracts/FlatToken.sol",
     "deploy-treasury-testnet": "npx hardhat run scripts/deployTreasury.js --network fantomTestnet",
     "deploy-treasury-mainnet": "npx hardhat run scripts/deployTreasury.js --network fantomMainnet",
     "deploy-cbi-testnet": "npx hardhat run scripts/deployCbiToken.js --network fantomTestnet",

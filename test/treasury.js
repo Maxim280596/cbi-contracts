@@ -12,14 +12,9 @@ const {
   WithdrawCBIbySign, 
   SellCBIbySign, 
   ROUTER_ADDRESS, 
-  MAX_UINT 
+  MAX_UINT,
+  ADMIN_PK 
 } = require("./constants")
-
-// for testing methods sellCBIbySign and withdrawCBIbySign run Hardhat node and copy private key
-// from account index 1 and add to this constants.
-// First wallet pk = adminPk. 
-
-const adminPk = "59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d"
 
 describe("CBI_Treasury tests", () => {
   let usdtToken, cbiToken, treasury, router, accounts, deployer, admin, domain;
@@ -154,7 +149,7 @@ describe("CBI_Treasury tests", () => {
       message,
     }
 
-    const key = Buffer.from(adminPk, "hex")
+    const key = Buffer.from(ADMIN_PK, "hex")
     let res = ethSignUtil.signTypedData_v4(key, {
       data: rawData
     })
@@ -203,7 +198,7 @@ describe("CBI_Treasury tests", () => {
       message,
     }
 
-    const key = Buffer.from(adminPk, "hex")
+    const key = Buffer.from(ADMIN_PK, "hex")
     let res = ethSignUtil.signTypedData_v4(key, {
       data: rawData
     })
@@ -246,7 +241,7 @@ describe("CBI_Treasury tests", () => {
       message,
     }
 
-    const key = Buffer.from(adminPk, "hex")
+    const key = Buffer.from(ADMIN_PK, "hex")
     let res = ethSignUtil.signTypedData_v4(key, {
       data: rawData
     })
@@ -288,7 +283,7 @@ describe("CBI_Treasury tests", () => {
       message,
     }
 
-    const key = Buffer.from(adminPk, "hex")
+    const key = Buffer.from(ADMIN_PK, "hex")
     let res = ethSignUtil.signTypedData_v4(key, {
       data: rawData
     })
@@ -333,7 +328,7 @@ describe("CBI_Treasury tests", () => {
       message,
     }
 
-    const key = Buffer.from(adminPk, "hex")
+    const key = Buffer.from(ADMIN_PK, "hex")
     let res = ethSignUtil.signTypedData_v4(key, {
       data: rawData
     })
@@ -383,7 +378,7 @@ describe("CBI_Treasury tests", () => {
       message,
     }
 
-    const key = Buffer.from(adminPk, "hex")
+    const key = Buffer.from(ADMIN_PK, "hex")
     let res = ethSignUtil.signTypedData_v4(key, {
       data: rawData
     })
@@ -427,7 +422,7 @@ describe("CBI_Treasury tests", () => {
       message,
     }
 
-    const key = Buffer.from(adminPk, "hex")
+    const key = Buffer.from(ADMIN_PK, "hex")
     let res = ethSignUtil.signTypedData_v4(key, {
       data: rawData
     })
@@ -471,7 +466,7 @@ describe("CBI_Treasury tests", () => {
       message,
     }
 
-    const key = Buffer.from(adminPk, "hex")
+    const key = Buffer.from(ADMIN_PK, "hex")
     let res = ethSignUtil.signTypedData_v4(key, {
       data: rawData
     })
