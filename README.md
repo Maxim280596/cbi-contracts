@@ -8,11 +8,10 @@ To get a list of hardhat wallets and their private keys, run the `npx hardhat no
 - `yarn test-cbi`  (CBI_ERC20 token contract tests)
 
 # Deploy
-
-- yarn deploy-treasury-testnet   (deploy contract Treasury to nerwork fantom testnet)
-- yarn deploy-treasury-mainnet  (deploy contract Treasury to nerwork fantom testnet)
-- yarn deploy-cbi-testnet (deploy contract CBI_ERC20 to nerwork fantom testnet)
-- yarn deploy-cbi-mainnet (deploy contract CBI_ERC20 to nerwork fantom testnet)
+- `yarn deploy-treasury-testnet`   (deploy contract Treasury to nerwork fantom testnet)
+- `yarn deploy-treasury-mainnet`  (deploy contract Treasury to nerwork fantom testnet)
+- `yarn deploy-cbi-testnet` (deploy contract CBI_ERC20 to nerwork fantom testnet)
+- `yarn deploy-cbi-mainnet` (deploy contract CBI_ERC20 to nerwork fantom testnet)
 
 # Basic Sample Hardhat Project
 
