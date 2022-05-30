@@ -15,8 +15,8 @@ const {
   MAX_UINT 
 } = require("./constants")
 
-// for testing methods sellCBIbySign and withdrawCBIbySign run Hardhat node and copy private keys
-// from accounts 1 and add to this constants.
+// for testing methods sellCBIbySign and withdrawCBIbySign run Hardhat node and copy private key
+// from account index 1 and add to this constants.
 // First wallet pk = adminPk. 
 
 const adminPk = "59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d"
@@ -85,7 +85,6 @@ describe("CBI_Treasury tests", () => {
     expect(cbiBalanceAfter.sub(cbiBalanceStart)).to.equal(cbiSwapAmount[1])
     expect(cbiBalanceAfter).gt(cbiBalanceStart);
   })
-
 
   it("purchaseCBI method should reverted, if zero USDT amount", async () => {
     await cbiToken.transfer(treasury.address, "100000000000000000000000");
@@ -163,7 +162,6 @@ describe("CBI_Treasury tests", () => {
     let r = ethUtil.bufferToHex(signature.r)
     let s = ethUtil.bufferToHex(signature.s)
     let v = signature.v
-
 
     await treasury.connect(accounts[0]).withdrawCBIbySign(
       accounts[0].address,
