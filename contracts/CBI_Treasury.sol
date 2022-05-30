@@ -32,7 +32,7 @@ contract CBI_Treasury is Ownable, Rescue {
         );
 
     event PurchaseCBI(
-        uint256 indexed usdtAMount,
+        uint256 indexed usdtAmount,
         uint256 indexed cbiAmount,
         address user,
         uint256 indexed userId

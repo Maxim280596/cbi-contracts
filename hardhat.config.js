@@ -1,13 +1,10 @@
 require("@nomiclabs/hardhat-web3");
-// require("@nomiclabs/hardhat-ethers");
 require("@nomiclabs/hardhat-etherscan");
-const { ethers } = require("ethers");
 require("@nomiclabs/hardhat-waffle");
-const {getPKs, buildHardhatNetworkAccounts} = require("./utills/configInit");
+const { getPKs } = require("./utills/configInit");
 
 
 const accounts = getPKs();
-const hardhatNetworkAccounts = buildHardhatNetworkAccounts(accounts);
 
 module.exports = {
   defaultNetwork: "hardhat",
@@ -57,7 +54,7 @@ module.exports = {
     timeout: 40000
   },
   etherscan: {
-   apiKey: "P4SHTF8MGSU13BPYT3VTF4TWPUAWGFAIKB"
+   apiKey: "WM4ZGA5IU33XKZV9SAI9XXZJJE3R3RXTAI"
   }
 };
 
