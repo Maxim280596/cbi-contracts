@@ -1,5 +1,5 @@
 require("@nomiclabs/hardhat-web3");
-require("@nomiclabs/hardhat-ethers");
+// require("@nomiclabs/hardhat-ethers");
 require("@nomiclabs/hardhat-etherscan");
 const { ethers } = require("ethers");
 require("@nomiclabs/hardhat-waffle");
@@ -7,24 +7,26 @@ const {getPKs, buildHardhatNetworkAccounts} = require("./utills/configInit");
 
 
 const accounts = getPKs();
-const hardhatNetworkAccounts = buildHardhatNetworkAccounts();
+const hardhatNetworkAccounts = buildHardhatNetworkAccounts(accounts);
 
 module.exports = {
   defaultNetwork: "hardhat",
   networks: {
   hardhat: {
-    accounts: hardhatNetworkAccounts
+    forking: {
+      url: "https://rpc.testnet.fantom.network/",
+      enabled: true,
+      blockNumber: 9148484, 
+      accounts,
+  },
   },
   fantomMainnet: {
     url: "https://rpc.ftm.tools/",
     accounts,
-    // gasLimit: 2000000
   },
   fantomTestnet: {
     url: "https://rpc.testnet.fantom.network/",
-    // chainId: "0xfa2",
-    accounts,
-    // gasLimit: 2000000    
+    accounts,  
   },
 },
 

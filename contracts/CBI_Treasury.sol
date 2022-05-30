@@ -39,7 +39,7 @@ contract CBI_Treasury is Ownable, Rescue {
     );
     event SellCBI(
         uint256 indexed cbiAmount,
-        uint256 indexed usdtAMount,
+        uint256 indexed usdtAmount,
         address user,
         uint indexed userId
     );
@@ -276,7 +276,7 @@ contract CBI_Treasury is Ownable, Rescue {
             block.timestamp
         );
 
-        emit SellCBI(swapAmounts[1], amount, user, userId);
+        emit SellCBI(amount, swapAmounts[1], user, userId);
     }
 
     // ============================================ Owner & Admin functions ===============================================
