@@ -3,6 +3,8 @@
   "scripts": {
     "compile": "hardhat compile",
     "test": "echo \"Error: no test specified\" && exit 1",
+    "test-treasury": "npx hardhat test ./test/treasury.js",
+    "test-cbi": "npx hardhat test ./test/cbiToken.js",
     "clean": "rm -r artifacts cache",
     "flat-treasury": "npx hardhat flatten ./contracts/CBI_Treasury.sol > ./contracts/FlatTreasury.sol"
 
