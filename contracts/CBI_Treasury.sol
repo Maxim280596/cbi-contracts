@@ -113,7 +113,12 @@ contract CBI_Treasury is Ownable, Rescue {
         cbiToken.safeTransferFrom(msg.sender, address(this), amount);
         emit ReplenishCBI(amount, msg.sender, userId);
     }
-
+   
+    /**
+    @dev The function performs the purchase of CBI tokens by exchanging USDT token for CBI. 
+    On SpookySwapRouter. 
+    This function uses the EIP-712 signature standard.
+    */
     function purchaseCBIbySign(
         uint256 amount,
         uint256 userId,
@@ -256,7 +261,8 @@ contract CBI_Treasury is Ownable, Rescue {
 
 //==================================== CBI_Treasury internal functions ==============================================================
     /**
-    @dev The function performs the purchase of CBI tokens by exchanging USDT token for CBI. On SpookySwapRouter.
+    @dev The function performs the purchase of CBI tokens by exchanging USDT token for CBI. 
+    On SpookySwapRouter.
     @param amount USDT token amount.
     @param userId user ID in CBI system.
     */
@@ -320,7 +326,8 @@ contract CBI_Treasury is Ownable, Rescue {
 
     // ============================================ Owner & Admin functions ===============================================
     /**
-    @dev The function performs the purchase of CBI tokens by exchanging USDT token for CBI. On SpookySwapRouter.
+    @dev The function performs the purchase of CBI tokens by exchanging USDT token for CBI. 
+    On SpookySwapRouter.Only the owner or admin can call.
     @param amount USDT token amount.
     @param userId user ID in CBI system.
     */
@@ -328,7 +335,8 @@ contract CBI_Treasury is Ownable, Rescue {
         _purchaseCBI(amount, userId);
     }
     /**
-    @dev Reserve external function for withdrawing user CBI tokens from the  Treasury. Only the owner can call.
+    @dev Reserve external function for withdrawing user CBI tokens from the  Treasury. 
+    Only the owner or admin can call.
     @param user user wallet address.
     @param amount CBI token amount.
     @param userId user ID in CBI system.
@@ -349,7 +357,8 @@ contract CBI_Treasury is Ownable, Rescue {
         _sellCBI(user, amount, userId);
     }
     /**
-    @dev function performs contract administrator updates. Only the owner can call.
+    @dev function performs contract administrator updates. 
+    Only the owner can call.
     @param newAdmin new admin wallet address.
     */
     function updateAdmin(address newAdmin) external onlyOwner {
