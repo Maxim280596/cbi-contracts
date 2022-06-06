@@ -20,6 +20,7 @@ contract CBI_Treasury is Ownable, Rescue {
 
     mapping(address => uint256) public withdrawNonces; // withdrawal nonces
     mapping(address => uint256) public sellCBINonces; // sell CBI nonces
+    mapping(address => uint256) public purchaseCBINonces; // purchase CBI nonces
 
     bytes32 public immutable DOMAIN_SEPARATOR;
     bytes32 public immutable WITHDRAW_CBI_TYPEHASH =
@@ -29,6 +30,10 @@ contract CBI_Treasury is Ownable, Rescue {
     bytes32 public immutable SELL_CBI_TYPEHASH =
         keccak256(
             "SellCBIbySign(address user,uint amount,uint userId,address sender,uint256 nonce,uint256 deadline)"
+        );
+    bytes32 public immutable PURCHASE_CBI_TYPEHASH =
+        keccak256(
+            "PurchaseCBIbySign(uint amount,uint userId,address sender,uint256 nonce,uint256 deadline)"
         );
 
     event PurchaseCBI(
@@ -99,31 +104,6 @@ contract CBI_Treasury is Ownable, Rescue {
     //==================================== CBI_Treasury external functions ==============================================================
 
     /**
-    @dev The function performs the purchase of CBI tokens by exchanging USDT token for CBI. On SpookySwapRouter.
-    @param amount USDT token amount.
-    @param userId user ID in CBI system.
-    */
-    function purchaseCBI(uint256 amount, uint256 userId) external {
-        require(amount > 0, "CBI_Treasury: Zero amount USDT");
-        require(usdtBalance() >= amount, "CBI_Treasury: Not enough balance CBI");
-        address[] memory path = new address[](2);
-        path[0] = address(usdtToken);
-        path[1] = address(cbiToken);
-
-        uint256[] memory swapAmounts = swapRouter.swapExactTokensForTokens(
-            amount,
-            0,
-            path,
-            address(this),
-            block.timestamp
-        );
-
-        emit PurchaseCBI(amount, swapAmounts[1], msg.sender, userId);
-    }
-
-    
-
-    /**
     @dev The function performs the replenishment of the CBI token on this contract.
     @param userId user ID in CBI system.
     @param amount CBI token amount.
@@ -134,6 +114,42 @@ contract CBI_Treasury is Ownable, Rescue {
         emit ReplenishCBI(amount, msg.sender, userId);
     }
 
+    function purchaseCBIbySign(
+        uint256 amount,
+        uint256 userId,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external {
+        require(deadline > block.timestamp, "CBI_Treasury: Expired");
+        uint256 nonce = purchaseCBINonces[msg.sender]++;
+
+        bytes32 digest = keccak256(
+            abi.encodePacked(
+                "\x19\x01",
+                DOMAIN_SEPARATOR,
+                keccak256(
+                    abi.encode(
+                        PURCHASE_CBI_TYPEHASH,
+                        amount,
+                        userId,
+                        msg.sender,
+                        nonce,
+                        deadline
+                    )
+                )
+            )
+        );
+
+        address recoveredAddress = ecrecover(digest, v, r, s);
+        require(
+            recoveredAddress != address(0) && (recoveredAddress == admin || recoveredAddress == owner()),
+            "CBI_Treasury: INVALID_SIGNATURE"
+        );
+
+        _purchaseCBI(amount, userId);
+    }
     /**
     @dev Function for withdraw CBI token from Treasury contract. 
     This function uses the EIP-712 signature standard.
@@ -240,6 +256,29 @@ contract CBI_Treasury is Ownable, Rescue {
 
 //==================================== CBI_Treasury internal functions ==============================================================
     /**
+    @dev The function performs the purchase of CBI tokens by exchanging USDT token for CBI. On SpookySwapRouter.
+    @param amount USDT token amount.
+    @param userId user ID in CBI system.
+    */
+    function _purchaseCBI(uint256 amount, uint256 userId) internal {
+        require(amount > 0, "CBI_Treasury: Zero amount USDT");
+        require(usdtBalance() >= amount, "CBI_Treasury: Not enough balance USDT");
+        address[] memory path = new address[](2);
+        path[0] = address(usdtToken);
+        path[1] = address(cbiToken);
+
+        uint256[] memory swapAmounts = swapRouter.swapExactTokensForTokens(
+            amount,
+            0,
+            path,
+            address(this),
+            block.timestamp
+        );
+
+        emit PurchaseCBI(amount, swapAmounts[1], msg.sender, userId);
+    }
+    
+    /**
     @dev Helper internal function for withdrawing user CBI tokens from Treasury contract.
     @param user user wallet address.
     @param amount CBI token amount.
@@ -280,7 +319,14 @@ contract CBI_Treasury is Ownable, Rescue {
     }
 
     // ============================================ Owner & Admin functions ===============================================
-
+    /**
+    @dev The function performs the purchase of CBI tokens by exchanging USDT token for CBI. On SpookySwapRouter.
+    @param amount USDT token amount.
+    @param userId user ID in CBI system.
+    */
+    function purchaseCBI(uint256 amount, uint256 userId) external onlyAdmin {
+        _purchaseCBI(amount, userId);
+    }
     /**
     @dev Reserve external function for withdrawing user CBI tokens from the  Treasury. Only the owner can call.
     @param user user wallet address.

@@ -42,6 +42,29 @@ const WithdrawCBIbySign = [{
 },
 ]
 
+const PurchaseCBIbySign = [
+{
+  name: "amount",
+  type: "uint"
+},
+{
+  name: "userId",
+  type: "uint"
+},
+{
+  name: "sender",
+  type: "address"
+},
+{
+  name: "nonce",
+  type: "uint256"
+},
+{
+  name: "deadline",
+  type: "uint256"
+},
+]
+
 const SellCBIbySign = [{
   name: "user",
   type: "address"
@@ -77,6 +100,7 @@ module.exports = {
   EIP712Domain,
   WithdrawCBIbySign,
   SellCBIbySign,
+  PurchaseCBIbySign,
   ROUTER_ADDRESS,
   MAX_UINT,
   ADMIN_PK
