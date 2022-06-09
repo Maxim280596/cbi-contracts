@@ -18,45 +18,19 @@ contract CBI_Treasury is Ownable, Rescue {
     IERC20 public usdtToken;
     address public admin; // contract admin address
 
-    mapping(address => uint256) public withdrawNonces; // withdrawal nonces
-    mapping(address => uint256) public sellCBINonces; // sell CBI nonces
-    mapping(address => uint256) public purchaseCBINonces; // purchase CBI nonces
-
-    bytes32 public immutable DOMAIN_SEPARATOR;
-    bytes32 public immutable WITHDRAW_CBI_TYPEHASH =
-        keccak256(
-            "WithdrawCBIbySign(address user,uint amount,uint userId,address sender,uint256 nonce,uint256 deadline)"
-        );
-    bytes32 public immutable SELL_CBI_TYPEHASH =
-        keccak256(
-            "SellCBIbySign(address user,uint amount,uint userId,address sender,uint256 nonce,uint256 deadline)"
-        );
-    bytes32 public immutable PURCHASE_CBI_TYPEHASH =
-        keccak256(
-            "PurchaseCBIbySign(uint amount,uint userId,address sender,uint256 nonce,uint256 deadline)"
-        );
-
     event PurchaseCBI(
         uint256 indexed usdtAmount,
         uint256 indexed cbiAmount,
-        address user,
-        uint256 indexed userId
+        address user
     );
     event SellCBI(
         uint256 indexed cbiAmount,
         uint256 indexed usdtAmount,
-        address user,
-        uint indexed userId
-    );
-    event ReplenishCBI(
-        uint256 indexed cbiAmount,
-        address user,
-        uint256 indexed userId
+        address user
     );
     event WithdrawCBI(
         uint256 indexed cbiAmount,
-        address user,
-        uint256 indexed userId
+        address user
     );
     event UpdateAdmin(address newAdmin);
 
@@ -76,20 +50,6 @@ contract CBI_Treasury is Ownable, Rescue {
         usdtToken = IERC20(_usdtToken);
         admin = _admin;
 
-        uint256 chainId = block.chainid;
-
-        DOMAIN_SEPARATOR = keccak256(
-            abi.encode(
-                keccak256(
-                    "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
-                ),
-                keccak256(bytes("CBI_Treasury")),
-                keccak256(bytes("1")),
-                chainId,
-                address(this)
-            )
-        );
-
         IERC20(_cbiToken).safeApprove(_swapRouter, type(uint256).max);
         IERC20(_usdtToken).safeApprove(_swapRouter, type(uint256).max);
     }
@@ -99,147 +59,6 @@ contract CBI_Treasury is Ownable, Rescue {
     modifier onlyAdmin {
         require(msg.sender == admin || msg.sender == owner(), "Ownable: Caller is not the admin");
         _;
-    }
-
-    //==================================== CBI_Treasury external functions ==============================================================
-
-    /**
-    @dev The function performs the replenishment of the CBI token on this contract.
-    @param userId user ID in CBI system.
-    @param amount CBI token amount.
-    */
-    function replenishCBI(uint256 userId, uint256 amount) external {
-        require(amount > 0, "CBI_Treasury: Zero amount");
-        cbiToken.safeTransferFrom(msg.sender, address(this), amount);
-        emit ReplenishCBI(amount, msg.sender, userId);
-    }
-   
-    /**
-    @dev The function performs the purchase of CBI tokens by exchanging USDT token for CBI. 
-    On SpookySwapRouter. 
-    This function uses the EIP-712 signature standard.
-    */
-    function purchaseCBIbySign(
-        uint256 amount,
-        uint256 userId,
-        uint256 deadline,
-        uint8 v,
-        bytes32 r,
-        bytes32 s
-    ) external {
-        require(deadline > block.timestamp, "CBI_Treasury: Expired");
-        uint256 nonce = purchaseCBINonces[msg.sender]++;
-
-        bytes32 digest = keccak256(
-            abi.encodePacked(
-                "\x19\x01",
-                DOMAIN_SEPARATOR,
-                keccak256(
-                    abi.encode(
-                        PURCHASE_CBI_TYPEHASH,
-                        amount,
-                        userId,
-                        msg.sender,
-                        nonce,
-                        deadline
-                    )
-                )
-            )
-        );
-
-        address recoveredAddress = ecrecover(digest, v, r, s);
-        require(
-            recoveredAddress != address(0) && (recoveredAddress == admin || recoveredAddress == owner()),
-            "CBI_Treasury: INVALID_SIGNATURE"
-        );
-
-        _purchaseCBI(amount, userId);
-    }
-    /**
-    @dev Function for withdraw CBI token from Treasury contract. 
-    This function uses the EIP-712 signature standard.
-    */
-    function withdrawCBIbySign(
-        address user,
-        uint256 amount,
-        uint256 userId,
-        uint256 deadline,
-        uint8 v,
-        bytes32 r,
-        bytes32 s
-    ) external {
-        require(deadline > block.timestamp, "CBI_Treasury: Expired");
-        uint256 nonce = withdrawNonces[msg.sender]++;
-
-        bytes32 digest = keccak256(
-            abi.encodePacked(
-                "\x19\x01",
-                DOMAIN_SEPARATOR,
-                keccak256(
-                    abi.encode(
-                        WITHDRAW_CBI_TYPEHASH,
-                        user,
-                        amount,
-                        userId,
-                        msg.sender,
-                        nonce,
-                        deadline
-                    )
-                )
-            )
-        );
-
-        address recoveredAddress = ecrecover(digest, v, r, s);
-        require(
-            recoveredAddress != address(0) && (recoveredAddress == admin || recoveredAddress == owner()),
-            "CBI_Treasury: INVALID_SIGNATURE"
-        );
-
-        _withdrawCBI(user, amount, userId);
-    }
-
-
-    /**
-    @dev Function for sell CBI token. 
-    This function uses the EIP-712 signature standard.
-    */
-    function sellCBIbySign(
-        address user,
-        uint256 amount,
-        uint256 userId,
-        uint256 deadline,
-        uint8 v,
-        bytes32 r,
-        bytes32 s
-    ) external {
-        require(deadline > block.timestamp, "CBI_Treasury: Expired");
-        uint256 nonce = sellCBINonces[msg.sender]++;
-
-        bytes32 digest = keccak256(
-            abi.encodePacked(
-                "\x19\x01",
-                DOMAIN_SEPARATOR,
-                keccak256(
-                    abi.encode(
-                        SELL_CBI_TYPEHASH,
-                        user,
-                        amount,
-                        userId,
-                        msg.sender,
-                        nonce,
-                        deadline
-                    )
-                )
-            )
-        );
-
-        address recoveredAddress = ecrecover(digest, v, r, s);
-        require(
-            recoveredAddress != address(0) && (recoveredAddress == admin || recoveredAddress == owner()),
-            "CBI_Treasury: INVALID_SIGNATURE"
-        );
-
-        _sellCBI(user, amount, userId);
     }
 
 //==================================== CBI_Treasury view functions ==============================================================
@@ -264,9 +83,8 @@ contract CBI_Treasury is Ownable, Rescue {
     @dev The function performs the purchase of CBI tokens by exchanging USDT token for CBI. 
     On SpookySwapRouter.
     @param amount USDT token amount.
-    @param userId user ID in CBI system.
     */
-    function _purchaseCBI(uint256 amount, uint256 userId) internal {
+    function _purchaseCBI(uint256 amount) internal {
         require(amount > 0, "CBI_Treasury: Zero amount USDT");
         require(usdtBalance() >= amount, "CBI_Treasury: Not enough balance USDT");
         address[] memory path = new address[](2);
@@ -281,32 +99,30 @@ contract CBI_Treasury is Ownable, Rescue {
             block.timestamp
         );
 
-        emit PurchaseCBI(amount, swapAmounts[1], msg.sender, userId);
+        emit PurchaseCBI(amount, swapAmounts[1], msg.sender);
     }
     
     /**
     @dev Helper internal function for withdrawing user CBI tokens from Treasury contract.
     @param user user wallet address.
     @param amount CBI token amount.
-    @param userId user ID in CBI system.
     */
     function _withdrawCBI(
         address user,
-        uint256 amount,
-        uint256 userId
+        uint256 amount
     ) internal {
         require(amount > 0, "CBI_Treasury: Zero amount");
         require(cbiBalance() >= amount, "CBI_Treasury: Not enough balance CBI");
 
         cbiToken.safeTransfer(user, amount);
-        emit WithdrawCBI(amount, user, userId);
+        emit WithdrawCBI(amount, user);
     }
 
     /**
     @dev The function exchanges the CBI token for USDT.
     @param amount CBI token swap amount.
     */
-    function _sellCBI(address user, uint256 amount, uint userId) internal  {
+    function _sellCBI(address user, uint256 amount) internal  {
         require(amount > 0, "CBI_Treasury: Zero amount CBI");
         require(cbiBalance() >= amount, "CBI_Treasury: Not enough balance CBI");
         address[] memory path = new address[](2);
@@ -321,7 +137,7 @@ contract CBI_Treasury is Ownable, Rescue {
             block.timestamp
         );
 
-        emit SellCBI(amount, swapAmounts[1], user, userId);
+        emit SellCBI(amount, swapAmounts[1], user);
     }
 
     // ============================================ Owner & Admin functions ===============================================
@@ -329,33 +145,47 @@ contract CBI_Treasury is Ownable, Rescue {
     @dev The function performs the purchase of CBI tokens by exchanging USDT token for CBI. 
     On SpookySwapRouter.Only the owner or admin can call.
     @param amount USDT token amount.
-    @param userId user ID in CBI system.
     */
-    function purchaseCBI(uint256 amount, uint256 userId) external onlyAdmin {
-        _purchaseCBI(amount, userId);
+    function purchaseCBI(uint256 amount) external onlyAdmin {
+        _purchaseCBI(amount);
     }
     /**
     @dev Reserve external function for withdrawing user CBI tokens from the  Treasury. 
     Only the owner or admin can call.
     @param user user wallet address.
     @param amount CBI token amount.
-    @param userId user ID in CBI system.
     */
     function withdrawCBI(
         address user,
-        uint256 amount,
-        uint256 userId
+        uint256 amount
     ) external onlyAdmin {
-        _withdrawCBI(user, amount, userId);
+        _withdrawCBI(user, amount);
     }
 
     function sellCBI(
         address user,
-        uint256 amount,
-        uint256 userId
+        uint256 amount
     ) external onlyAdmin {
-        _sellCBI(user, amount, userId);
+        _sellCBI(user, amount);
     }
+
+    /**
+    @dev Reserve function for rescue others tokens. Only the admin or owner can call.
+    @param amount token amount.
+    @param tokenAddress token address.
+    @param to address for withdrawal.
+    */
+    function rescue(address to, address tokenAddress, uint256 amount) external override onlyAdmin {
+        require(
+            to != address(0),
+            "CBI_Rescue: Cannot rescue to the zero address"
+        );
+        require(amount > 0, "CBI_Rescue: Cannot rescue 0");
+
+        IERC20(tokenAddress).safeTransfer(to, amount);
+        emit RescueToken(to, address(tokenAddress), amount);
+    }
+
     /**
     @dev function performs contract administrator updates. 
     Only the owner can call.

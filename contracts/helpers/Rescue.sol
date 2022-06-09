@@ -22,7 +22,7 @@ contract Rescue is Ownable {
         address to,
         address tokenAddress,
         uint256 amount
-    ) external onlyOwner {
+    ) external virtual onlyOwner {
         require(
             to != address(0),
             "CBI_Rescue: Cannot rescue to the zero address"

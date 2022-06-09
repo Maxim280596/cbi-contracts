@@ -1,24 +1,16 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 const { BigNumber } = require("ethers");
-const ethSignUtil = require("eth-sig-util")
-const ethUtil = require("ethereumjs-util");
 const router_abi = require("./abis/routerAbi.json");
 const { nowInSeconds } = require("../utills/timeHelpers");
-const { parseSignature } = require("../utills/parseSignature")
 const { network } = require("hardhat");
 const { 
-  EIP712Domain, 
-  WithdrawCBIbySign, 
-  SellCBIbySign,
-  PurchaseCBIbySign, 
   ROUTER_ADDRESS, 
   MAX_UINT,
-  ADMIN_PK 
 } = require("./constants")
 
 describe("CBI_Treasury tests", () => {
-  let usdtToken, cbiToken, treasury, router, accounts, deployer, admin, domain;
+  let usdtToken, cbiToken, treasury, router, accounts, deployer, admin;
 
   before("Init test environment", async () => {
     const TREASURY = await ethers.getContractFactory("contracts/CBI_Treasury.sol:CBI_Treasury");
@@ -34,13 +26,6 @@ describe("CBI_Treasury tests", () => {
     cbiToken = await CBI.deploy("CBI", "CBI", "1000000000000000000000000000")
     router = await ethers.getContractAt(router_abi, ROUTER_ADDRESS);
     treasury = await TREASURY.deploy(router.address, cbiToken.address, usdtToken.address, admin.address);
-
-    domain = {
-      name: "CBI_Treasury",
-      version: "1",
-      chainId: network.config.chainId,
-      verifyingContract: treasury.address,
-    }
 
     await cbiToken.approve(router.address, MAX_UINT)
     await usdtToken.approve(router.address, MAX_UINT)
@@ -72,64 +57,7 @@ describe("CBI_Treasury tests", () => {
     let amountUSDT = BigNumber.from("1000000000");
     let cbiSwapAmount = await router.getAmountsOut(amountUSDT, [usdtToken.address, cbiToken.address])
 
-    await treasury.connect(admin).purchaseCBI(amountUSDT, 1)
-
-    let usdtBalanceAfter = await treasury.usdtBalance();
-    let cbiBalanceAfter = await treasury.cbiBalance();
-
-    expect(usdtBalanceStart.sub(usdtBalanceAfter)).to.equal(amountUSDT)
-    expect(cbiBalanceAfter.sub(cbiBalanceStart)).to.equal(cbiSwapAmount[1])
-    expect(cbiBalanceAfter).gt(cbiBalanceStart);
-  })
-
-  it("purchaseCBIbySign method should exchange USDT for CBI", async () => {
-    await cbiToken.transfer(treasury.address, "100000000000000000000000");
-    await usdtToken.transfer(treasury.address, "50000000000");
-
-    let usdtBalanceStart = await treasury.usdtBalance();
-    let cbiBalanceStart = await treasury.cbiBalance();
-
-    let amountUSDT = BigNumber.from("1000000000");
-    let cbiSwapAmount = await router.getAmountsOut(amountUSDT, [usdtToken.address, cbiToken.address])
-
-    let purchaseNonces = await treasury.purchaseCBINonces(accounts[0].address);
-
-    const message = {
-      user: accounts[0].address,
-      amount: "1000000000",
-      userId: "1",
-      sender: accounts[0].address,
-      nonce: purchaseNonces.toString(),
-      deadline: "2000000000",
-    }
-
-    const rawData = {
-      types: {
-        EIP712Domain,
-        PurchaseCBIbySign,
-      },
-      domain,
-      primaryType: "PurchaseCBIbySign",
-      message,
-    }
-
-    const key = Buffer.from(ADMIN_PK, "hex")
-    let res = ethSignUtil.signTypedData_v4(key, {
-      data: rawData
-    })
-    let signature = await parseSignature(res)
-    let r = ethUtil.bufferToHex(signature.r)
-    let s = ethUtil.bufferToHex(signature.s)
-    let v = signature.v
-
-    await treasury.connect(accounts[0]).purchaseCBIbySign(
-      amountUSDT,
-      1,
-      "2000000000",
-      v,
-      r,
-      s
-    )
+    await treasury.connect(admin).purchaseCBI(amountUSDT)
 
     let usdtBalanceAfter = await treasury.usdtBalance();
     let cbiBalanceAfter = await treasury.cbiBalance();
@@ -143,11 +71,11 @@ describe("CBI_Treasury tests", () => {
     await cbiToken.transfer(treasury.address, "100000000000000000000000");
     await usdtToken.transfer(treasury.address, "50000000000");
 
-    expect(treasury.connect(admin).purchaseCBI("0", 1)).to.be.revertedWith("CBI_Treasury: Zero amount USDT")
+    expect(treasury.connect(admin).purchaseCBI("0")).to.be.revertedWith("CBI_Treasury: Zero amount USDT")
   })
 
   it("purchaseCBI method should reverted, if the USDT balance is insufficient", async () => {
-    expect(treasury.connect(admin).purchaseCBI("1000000000", 1)).to.be.revertedWith("CBI_Treasury: Not enough balance CBI")
+    expect(treasury.connect(admin).purchaseCBI("1000000000")).to.be.revertedWith("CBI_Treasury: Not enough balance CBI")
   })
 
   it("purchaseCBI method should emit event PurchaseCBI", async () => {
@@ -155,75 +83,17 @@ describe("CBI_Treasury tests", () => {
     await usdtToken.transfer(treasury.address, "50000000000");
     let amountUSDT = "1000000000";
     let cbiSwapAmount = await router.getAmountsOut(amountUSDT, [usdtToken.address, cbiToken.address])
-    expect(treasury.connect(admin).purchaseCBI(amountUSDT, 1)).to.emit(treasury, 'PurchaseCBI').withArgs(amountUSDT, cbiSwapAmount[1], accounts[0].address, 1)
+    expect(treasury.connect(admin).purchaseCBI(amountUSDT)).to.emit(treasury, 'PurchaseCBI').withArgs(amountUSDT, cbiSwapAmount[1], accounts[0].address)
   })
 
-  it("replenishCBI method should transfer CBI from user to Treasury", async () => {
-    let userCbiBalanceStart = await cbiToken.balanceOf(accounts[0].address)
-    let treasuryCbiBalanceStart = await treasury.cbiBalance();
-    let replenichCbiAmount = BigNumber.from("100000000000000000000");
-
-    await cbiToken.connect(accounts[0]).approve(treasury.address, MAX_UINT);
-    await treasury.connect(accounts[0]).replenishCBI(1, replenichCbiAmount)
-
-    let userCbiBalanceAfter = await cbiToken.balanceOf(accounts[0].address);
-    let treasuryCbiBalanceAfter = await treasury.cbiBalance();
-    expect(userCbiBalanceStart.sub(replenichCbiAmount)).to.equal(BigNumber.from(userCbiBalanceAfter))
-    expect(treasuryCbiBalanceAfter.sub(treasuryCbiBalanceStart)).to.equal(BigNumber.from(replenichCbiAmount))
-  })
-
-  it("replenishCBI method should reverted, if zero USDT amount", async () => {
-    expect(treasury.connect(accounts[0]).replenishCBI(1, "0")).to.be.revertedWith("CBI_Treasury: Zero amount")
-  })
-
-  it("replenishCBI method should emit event ReplenishCBI", async () => {
-    let replenichCbiAmount = BigNumber.from("100000000000000000000");
-    expect(treasury.connect(accounts[0]).replenishCBI(1, replenichCbiAmount)).to.emit(treasury, 'ReplenishCBI').withArgs(replenichCbiAmount, accounts[0].address, 1)
-  })
-
-
-  it("withdrawCBIbySign must withdraw funds", async () => {
+  it("withdrawCBI must withdraw funds", async () => {
     let cbiUserBalanceStart = await cbiToken.balanceOf(accounts[0].address);
     let cbiTreasuryBalanceStart = await treasury.cbiBalance();
-    let withdrawNonces = await treasury.withdrawNonces(accounts[0].address);
     let withdrawAmount = BigNumber.from("100000000000000000000")
 
-    const message = {
-      user: accounts[0].address,
-      amount: "100000000000000000000",
-      userId: "1",
-      sender: accounts[0].address,
-      nonce: withdrawNonces.toString(),
-      deadline: "2000000000",
-    }
-
-    const rawData = {
-      types: {
-        EIP712Domain,
-        WithdrawCBIbySign,
-      },
-      domain,
-      primaryType: "WithdrawCBIbySign",
-      message,
-    }
-
-    const key = Buffer.from(ADMIN_PK, "hex")
-    let res = ethSignUtil.signTypedData_v4(key, {
-      data: rawData
-    })
-    let signature = await parseSignature(res)
-    let r = ethUtil.bufferToHex(signature.r)
-    let s = ethUtil.bufferToHex(signature.s)
-    let v = signature.v
-
-    await treasury.connect(accounts[0]).withdrawCBIbySign(
+    await treasury.connect(admin).withdrawCBI(
       accounts[0].address,
-      withdrawAmount,
-      1,
-      "2000000000",
-      v,
-      r,
-      s
+      withdrawAmount
     )
 
     let cbiUserBalanceAfter = await cbiToken.balanceOf(accounts[0].address);
@@ -233,177 +103,42 @@ describe("CBI_Treasury tests", () => {
     expect(cbiTreasuryBalanceStart.sub(cbiTreasuryBalanceAfter)).to.equal(withdrawAmount)
   })
 
-  it("withdrawCBIbySign method should reverted, if zero amount", async () => {
-    let withdrawNonces = await treasury.withdrawNonces(accounts[0].address);
+  it("withdrawCBI method should reverted, if zero amount", async () => {
     let withdrawAmount = BigNumber.from("100000000000000000000");
 
-    const message = {
-      user: accounts[0].address,
-      amount: "100000000000000000000",
-      userId: "1",
-      sender: accounts[0].address,
-      nonce: withdrawNonces.toString(),
-      deadline: "2000000000",
-    }
-
-    const rawData = {
-      types: {
-        EIP712Domain,
-        WithdrawCBIbySign,
-      },
-      domain,
-      primaryType: "WithdrawCBIbySign",
-      message,
-    }
-
-    const key = Buffer.from(ADMIN_PK, "hex")
-    let res = ethSignUtil.signTypedData_v4(key, {
-      data: rawData
-    })
-    let signature = await parseSignature(res)
-    let r = ethUtil.bufferToHex(signature.r)
-    let s = ethUtil.bufferToHex(signature.s)
-    let v = signature.v
-
-    expect(treasury.connect(accounts[0]).withdrawCBIbySign(
+    expect(treasury.connect(admin).withdrawCBI(
       accounts[0].address,
-      withdrawAmount,
-      1,
-      "2000000000",
-      v,
-      r,
-      s
+      withdrawAmount
     )).to.be.revertedWith("CBI_Treasury: Zero amount")
   })
 
-  it("withdrawCBIbySign method should reverted, if there are not enough CBI tokens on the Treasury balance", async () => {
-    let withdrawNonces = await treasury.withdrawNonces(accounts[0].address);
-    let withdrawAmount = BigNumber.from("100000000000000000000000000");
+  it("withdrawCBI method should reverted, if there are not enough CBI tokens on the Treasury balance", async () => {
+    let withdrawAmount = BigNumber.from("100000000000000000000000000000");
 
-    const message = {
-      user: accounts[0].address,
-      amount: "100000000000000000000000000",
-      userId: "1",
-      sender: accounts[0].address,
-      nonce: withdrawNonces.toString(),
-      deadline: "2000000000",
-    }
-
-    const rawData = {
-      types: {
-        EIP712Domain,
-        WithdrawCBIbySign,
-      },
-      domain,
-      primaryType: "WithdrawCBIbySign",
-      message,
-    }
-
-    const key = Buffer.from(ADMIN_PK, "hex")
-    let res = ethSignUtil.signTypedData_v4(key, {
-      data: rawData
-    })
-    let signature = await parseSignature(res)
-    let r = ethUtil.bufferToHex(signature.r)
-    let s = ethUtil.bufferToHex(signature.s)
-    let v = signature.v
-
-    expect(treasury.connect(accounts[0]).withdrawCBIbySign(
+    expect(treasury.connect(admin).withdrawCBI(
       accounts[0].address,
-      withdrawAmount,
-      1,
-      "2000000000",
-      v,
-      r,
-      s
+      withdrawAmount
     )).to.be.revertedWith("CBI_Treasury: Not enough balance CBI")
   })
 
-  it("withdrawCBIbySign method should emit event WithdrawCBI", async () => {
-    let withdrawNonces = await treasury.withdrawNonces(accounts[0].address);
+  it("withdrawCBI method should emit event WithdrawCBI", async () => {
     let withdrawAmount = BigNumber.from("100000000000000000000");
-    const message = {
-      user: accounts[0].address,
-      amount: "100000000000000000000",
-      userId: "1",
-      sender: accounts[0].address,
-      nonce: withdrawNonces.toString(),
-      deadline: "2000000000",
-    }
-
-    const rawData = {
-      types: {
-        EIP712Domain,
-        WithdrawCBIbySign,
-      },
-      domain,
-      primaryType: "WithdrawCBIbySign",
-      message,
-    }
-
-    const key = Buffer.from(ADMIN_PK, "hex")
-    let res = ethSignUtil.signTypedData_v4(key, {
-      data: rawData
-    })
-    let signature = await parseSignature(res)
-    let r = ethUtil.bufferToHex(signature.r)
-    let s = ethUtil.bufferToHex(signature.s)
-    let v = signature.v
-
-    expect(treasury.connect(accounts[0]).withdrawCBIbySign(
+   
+    expect(treasury.connect(admin).withdrawCBI(
       accounts[0].address,
-      withdrawAmount,
-      1,
-      "2000000000",
-      v,
-      r,
-      s
-    )).to.emit(treasury, 'WithdrawCBI').withArgs(withdrawAmount, accounts[0].address, 1)
+      withdrawAmount
+    )).to.emit(treasury, 'WithdrawCBI').withArgs(withdrawAmount, accounts[0].address)
   })
 
-  it("sellCBIbySign must exchange CBI for USDT", async () => {
+  it("sellCBI must exchange CBI for USDT", async () => {
     let cbiTreasuryBalanceStart = await treasury.cbiBalance();
     let usdtTreasuryBalanceStart = await treasury.usdtBalance();
-    let sellNonces = await treasury.sellCBINonces(accounts[0].address);
     let sellAmount = BigNumber.from("100000000000000000000")
 
-    const message = {
-      user: accounts[0].address,
-      amount: "100000000000000000000",
-      userId: "1",
-      sender: accounts[0].address,
-      nonce: sellNonces.toString(),
-      deadline: "2000000000",
-    }
-
-    const rawData = {
-      types: {
-        EIP712Domain,
-        SellCBIbySign,
-      },
-      domain,
-      primaryType: "SellCBIbySign",
-      message,
-    }
-
-    const key = Buffer.from(ADMIN_PK, "hex")
-    let res = ethSignUtil.signTypedData_v4(key, {
-      data: rawData
-    })
-    let signature = await parseSignature(res)
-    let r = ethUtil.bufferToHex(signature.r)
-    let s = ethUtil.bufferToHex(signature.s)
-    let v = signature.v
-
     let usdtSwapAmount = await router.getAmountsOut(sellAmount, [cbiToken.address, usdtToken.address]);
-    await treasury.connect(accounts[0]).sellCBIbySign(
+    await treasury.connect(admin).sellCBI(
       accounts[0].address,
       sellAmount,
-      1,
-      "2000000000",
-      v,
-      r,
-      s
     )
 
     let usdtTreasuryBalanceAfter = await treasury.usdtBalance();
@@ -413,177 +148,50 @@ describe("CBI_Treasury tests", () => {
     expect(usdtTreasuryBalanceAfter.sub(usdtTreasuryBalanceStart)).to.equal(usdtSwapAmount[1])
   })
 
-  it("sellCBIbySign method should reverted, if zero amount", async () => {
-    let sellNonces = await treasury.sellCBINonces(accounts[0].address);
+  it("sellCBI method should reverted, if zero amount", async () => {
     let sellAmount = BigNumber.from("100000000000000000000")
 
-    const message = {
-      user: accounts[0].address,
-      amount: "100000000000000000000",
-      userId: "1",
-      sender: accounts[0].address,
-      nonce: sellNonces.toString(),
-      deadline: "2000000000",
-    }
-
-    const rawData = {
-      types: {
-        EIP712Domain,
-        SellCBIbySign,
-      },
-      domain,
-      primaryType: "SellCBIbySign",
-      message,
-    }
-
-    const key = Buffer.from(ADMIN_PK, "hex")
-    let res = ethSignUtil.signTypedData_v4(key, {
-      data: rawData
-    })
-    let signature = await parseSignature(res)
-    let r = ethUtil.bufferToHex(signature.r)
-    let s = ethUtil.bufferToHex(signature.s)
-    let v = signature.v
-
-    expect(treasury.connect(accounts[0]).sellCBIbySign(
+    expect(treasury.connect(admin).sellCBI(
       accounts[0].address,
-      sellAmount,
-      1,
-      "2000000000",
-      v,
-      r,
-      s
+      sellAmount
     )).to.be.revertedWith("CBI_Treasury: Zero amount")
   })
 
 
-  it("sellCBIbySign method should reverted, if there are not enough CBI tokens on the Treasury balance", async () => {
-    let sellNonces = await treasury.sellCBINonces(accounts[0].address);
+  it("sellCBI method should reverted, if there are not enough CBI tokens on the Treasury balance", async () => {
     let sellAmount = BigNumber.from("100000000000000000000000000")
 
-    const message = {
-      user: accounts[0].address,
-      amount: "100000000000000000000000000",
-      userId: "1",
-      sender: accounts[0].address,
-      nonce: sellNonces.toString(),
-      deadline: "2000000000",
-    }
-
-    const rawData = {
-      types: {
-        EIP712Domain,
-        SellCBIbySign,
-      },
-      domain,
-      primaryType: "SellCBIbySign",
-      message,
-    }
-
-    const key = Buffer.from(ADMIN_PK, "hex")
-    let res = ethSignUtil.signTypedData_v4(key, {
-      data: rawData
-    })
-    let signature = await parseSignature(res)
-    let r = ethUtil.bufferToHex(signature.r)
-    let s = ethUtil.bufferToHex(signature.s)
-    let v = signature.v
-
-    expect(treasury.connect(accounts[0]).sellCBIbySign(
+    expect(treasury.connect(admin).sellCBI(
       accounts[0].address,
-      sellAmount,
-      1,
-      "2000000000",
-      v,
-      r,
-      s
+      sellAmount
     )).to.be.revertedWith("CBI_Treasury: Not enough balance CBI")
   })
 
 
-  it("sellCBIbySign method should emit event SellCBI", async () => {
-    let sellNonces = await treasury.sellCBINonces(accounts[0].address);
+  it("sellCBI method should emit event SellCBI", async () => {
     let sellAmount = BigNumber.from("100000000000000000000")
-
-    const message = {
-      user: accounts[0].address,
-      amount: "100000000000000000000",
-      userId: "1",
-      sender: accounts[0].address,
-      nonce: sellNonces.toString(),
-      deadline: "2000000000",
-    }
-
-    const rawData = {
-      types: {
-        EIP712Domain,
-        SellCBIbySign,
-      },
-      domain,
-      primaryType: "SellCBIbySign",
-      message,
-    }
-
-    const key = Buffer.from(ADMIN_PK, "hex")
-    let res = ethSignUtil.signTypedData_v4(key, {
-      data: rawData
-    })
-    let signature = await parseSignature(res)
-    let r = ethUtil.bufferToHex(signature.r)
-    let s = ethUtil.bufferToHex(signature.s)
-    let v = signature.v
-
     let usdtSwapAmount = await router.getAmountsOut(sellAmount, [cbiToken.address, usdtToken.address]);
 
-    expect(treasury.connect(accounts[0]).sellCBIbySign(
+    expect(treasury.connect(admin).sellCBI(
       accounts[0].address,
-      sellAmount,
-      1,
-      "2000000000",
-      v,
-      r,
-      s
-    )).to.emit(treasury, 'SellCBI').withArgs(sellAmount, usdtSwapAmount, accounts[0].address, 1)
+      sellAmount
+    )).to.emit(treasury, 'SellCBI').withArgs(sellAmount, usdtSwapAmount, accounts[0].address)
   })
 
+  it("rescue method must withdraw tokens from contract", async () => {
+    let usdtBalanceStart = await treasury.usdtBalance();
+    let userUsdtBalanceStart = await usdtToken.balanceOf(accounts[0].address);
+    let rescueAmount = BigNumber.from("1000000")
 
-  //========================================= owner methods ==========================================
-
-  it("sellCBI method must exchange CBI for USDT", async () => {
-    let cbiTreasuryBalanceStart = await treasury.cbiBalance();
-    let usdtTreasuryBalanceStart = await treasury.usdtBalance();
-    let sellAmount = BigNumber.from("100000000000000000000");
-    let usdtSwapAmount = await router.getAmountsOut(sellAmount, [cbiToken.address, usdtToken.address]);
-
-    await treasury.sellCBI(
+    await treasury.connect(admin).rescue(
       accounts[0].address,
-      sellAmount,
-      1
+      usdtToken.address,
+      rescueAmount
     )
-
-    let usdtTreasuryBalanceAfter = await treasury.usdtBalance();
-    let cbiTreasuryBalanceAfter = await treasury.cbiBalance();
-
-    expect(cbiTreasuryBalanceStart.sub(cbiTreasuryBalanceAfter)).to.equal(sellAmount);
-    expect(usdtTreasuryBalanceAfter.sub(usdtTreasuryBalanceStart)).to.equal(usdtSwapAmount[1])
-  })
-
-  it("withdrawCBI method must withdraw CBI token from contract", async () => {
-    let cbiUserBalanceStart = await cbiToken.balanceOf(accounts[0].address);
-    let cbiTreasuryBalanceStart = await treasury.cbiBalance();
-    let withdrawAmount = BigNumber.from("100000000000000000000")
-
-    await treasury.withdrawCBI(
-      accounts[0].address,
-      withdrawAmount,
-      1
-    )
-
-    let cbiUserBalanceAfter = await cbiToken.balanceOf(accounts[0].address);
-    let cbiTreasuryBalanceAfter = await treasury.cbiBalance();
-
-    expect(cbiUserBalanceAfter.sub(cbiUserBalanceStart)).to.equal(withdrawAmount);
-    expect(cbiTreasuryBalanceStart.sub(cbiTreasuryBalanceAfter)).to.equal(withdrawAmount)
+    let usdtBalanceAfter = await treasury.usdtBalance();
+    let userUsdtBalanceAfter = await usdtToken.balanceOf(accounts[0].address);
+    expect(usdtBalanceStart.sub(usdtBalanceAfter)).to.equal(rescueAmount);
+    expect(userUsdtBalanceAfter.sub(userUsdtBalanceStart)).to.equal(rescueAmount);
   })
 
   it("updateAdmin method must update contract admin", async () => {
