@@ -13,7 +13,7 @@ describe("CBI_ERC20 contract", function () {
     CBI_ERC20 = await ethers.getContractFactory("CBI_ERC20");
     [owner, addr1, addr2, ...addrs] = await ethers.getSigners();
 
-    cbiToken = await CBI_ERC20.deploy("CBI", "CBI", "1000000000000000000000000000");
+    cbiToken = await CBI_ERC20.deploy("1000000000000000000000000000");
   });
 
   describe("Deployment", function () {
