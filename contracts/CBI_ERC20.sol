@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.10;
+pragma solidity 0.8.14;
 
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -17,8 +17,7 @@ contract CBI_ERC20 is ERC20, Ownable, Pausable {
      * @dev See {IERC20-transfer}.
      */
     function transfer(address to, uint256 amount) public override whenNotPaused returns (bool) {
-        address owner = msg.sender;
-        _transfer(owner, to, amount);
+        _transfer(msg.sender, to, amount);
         return true;
     }
 
@@ -26,8 +25,7 @@ contract CBI_ERC20 is ERC20, Ownable, Pausable {
      * @dev See {IERC20-approve}.
      */
     function approve(address spender, uint256 amount) public override whenNotPaused returns (bool) {
-        address owner = msg.sender;
-        _approve(owner, spender, amount);
+        _approve(msg.sender, spender, amount);
         return true;
     }
 
@@ -39,8 +37,7 @@ contract CBI_ERC20 is ERC20, Ownable, Pausable {
         address to,
         uint256 amount
     ) public whenNotPaused override returns (bool) {
-        address spender = msg.sender;
-        _spendAllowance(from, spender, amount);
+        _spendAllowance(from, msg.sender, amount);
         _transfer(from, to, amount);
         return true;
     }
