@@ -31,7 +31,7 @@ describe("CBI_Treasury tests", () => {
     admin = adminAccount;
 
     usdtToken = await USDT.deploy("USDT", "USDT", "6", "1000000000000000");
-    cbiToken = await CBI.deploy("CBI", "CBI", "1000000000000000000000000000")
+    cbiToken = await CBI.deploy("1000000000000000000000000000")
     router = await ethers.getContractAt(router_abi, ROUTER_ADDRESS);
     treasury = await TREASURY.deploy(router.address, cbiToken.address, usdtToken.address, admin.address);
 
