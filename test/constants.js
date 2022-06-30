@@ -32,7 +32,7 @@ const WithdrawBySign = [
   },
   {
     name: "userId",
-    type: "uint",
+    type: "string",
   },
   {
     name: "sender",
@@ -67,7 +67,7 @@ const SwapTokensBySign = [
   },
   {
     name: "userId",
-    type: "uint",
+    type: "string",
   },
   {
     name: "sender",
@@ -98,7 +98,7 @@ const SellBySign = [
   },
   {
     name: "userId",
-    type: "uint",
+    type: "string",
   },
   {
     name: "sender",

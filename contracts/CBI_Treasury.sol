@@ -33,11 +33,11 @@ contract CBI_Treasury is Ownable, Rescue {
     bytes32 public immutable DOMAIN_SEPARATOR;
     bytes32 public immutable WITHDRAW_TYPEHASH =
         keccak256(
-            "WithdrawBySign(address token,uint amount,address user,uint userId,address sender,uint256 nonce,uint256 deadline)"
+            "WithdrawBySign(address token,uint amount,address user,string userId,address sender,uint256 nonce,uint256 deadline)"
         );
     bytes32 public immutable SWAP_TYPEHASH =
         keccak256(
-            "SwapTokensBySign(address inputToken,address outputToken,uint amount,address user,uint userId,address sender,uint256 nonce,uint256 deadline)"
+            "SwapTokensBySign(address inputToken,address outputToken,uint amount,address user,string userId,address sender,uint256 nonce,uint256 deadline)"
         );
 
     event SwapTokens(
@@ -46,26 +46,26 @@ contract CBI_Treasury is Ownable, Rescue {
         uint256 indexed inputAmount,
         uint256 indexed outputAmount,
         address user,
-        uint256 indexed userId
+        string indexed userId
     );
     event Replenish(
         address indexed token,
         uint256 indexed amount,
         address user,
-        uint256 indexed userId
+        string indexed userId
     );
     event Withdraw(
         address indexed token,
         uint256 indexed amount,
         address user,
-        uint256 indexed userId
+        string indexed userId
     );
     event UpdateAdmin(address newAdmin);
     event UpdateAllowedToken(
         address token, 
-        uint swapLimit, 
-        uint withdrawLimit, 
-        bool allowed
+        uint indexed swapLimit, 
+        uint indexed withdrawLimit, 
+        bool indexed allowed
     );
 
     constructor(
@@ -130,7 +130,7 @@ contract CBI_Treasury is Ownable, Rescue {
     @param userId user ID in CBI system.
     @param amount token amount.
     */
-    function replenish(address token, uint256 amount, uint256 userId) external {
+    function replenish(address token, uint256 amount, string memory userId) external {
         require(amount > 0, "CBI_Treasury: Zero amount");
         Token storage tokenInfo = allowedTokensInfo[token];
         require(tokenInfo.allowed, "CBI_Treasury: Not allowed token");
@@ -150,7 +150,7 @@ contract CBI_Treasury is Ownable, Rescue {
         address outputToken,
         uint256 amount,
         address user,
-        uint256 userId,
+        string memory userId,
         uint256 deadline,
         uint8 v,
         bytes32 r,
@@ -170,7 +170,7 @@ contract CBI_Treasury is Ownable, Rescue {
                         outputToken,
                         amount,
                         user,
-                        userId,
+                        keccak256(bytes(userId)),
                         msg.sender,
                         nonce,
                         deadline
@@ -187,7 +187,7 @@ contract CBI_Treasury is Ownable, Rescue {
 
         _swapTokens(inputToken, outputToken, amount, user, userId);
     }
-    
+
     /**
     @dev Function for withdraw allowed tokens from Treasury contract. 
     This function uses the EIP-712 signature standard.
@@ -196,7 +196,7 @@ contract CBI_Treasury is Ownable, Rescue {
         address token,
         uint256 amount,
         address user, 
-        uint256 userId,
+        string calldata userId,
         uint256 deadline,
         uint8 v,
         bytes32 r,
@@ -215,7 +215,7 @@ contract CBI_Treasury is Ownable, Rescue {
                         token,
                         amount,
                         user,
-                        userId,
+                        keccak256(bytes(userId)),
                         msg.sender,
                         nonce,
                         deadline
@@ -260,7 +260,7 @@ contract CBI_Treasury is Ownable, Rescue {
     @param user recipient wallet address
     @param userId recipient user ID in CBI system.
     */
-    function _swapTokens(address inputToken, address outputToken, uint256 amount, address user, uint256 userId) internal {
+    function _swapTokens(address inputToken, address outputToken, uint256 amount, address user, string memory userId) internal {
         require(amount > 0, "CBI_Treasury: Zero amount");
         Token storage inputTokenInfo = allowedTokensInfo[inputToken];
         Token storage outputTokenInfo = allowedTokensInfo[outputToken];
@@ -297,7 +297,7 @@ contract CBI_Treasury is Ownable, Rescue {
         address token,
         uint256 amount,
         address user,
-        uint256 userId
+        string memory userId
     ) internal {
         Token storage tokenInfo = allowedTokensInfo[token];
         require(tokenInfo.allowed, "CBI_Treasury: Not allowed token");
@@ -318,7 +318,7 @@ contract CBI_Treasury is Ownable, Rescue {
     @param amount USDT token amount.
     @param userId user ID in CBI system.
     */
-    function swapTokens(address inputToken, address outputToken, uint256 amount, address user, uint256 userId) external onlyAdmin {
+    function swapTokens(address inputToken, address outputToken, uint256 amount, address user, string memory userId) external onlyAdmin {
         _swapTokens(inputToken, outputToken, amount, user, userId);
     }
 
@@ -333,7 +333,7 @@ contract CBI_Treasury is Ownable, Rescue {
         address token,
         uint256 amount,
         address user,
-        uint256 userId
+        string calldata userId
     ) external onlyAdmin {
         _withdraw(token, amount, user, userId);
     }
