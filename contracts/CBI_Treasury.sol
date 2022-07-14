@@ -3,8 +3,9 @@
 pragma solidity 0.8.14;
 
 import "./interfaces/IUniswapV2Router.sol";
-// import "./helpers/Rescue.sol";
+import "./helpers/Rescue.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -15,26 +16,9 @@ contract CBI_Treasury is Ownable {
 
     IUniswapV2Router public swapRouter;
 
-     //Enum of farm types
-    enum TrxStatus {
-        Pending,
-        Confirmed,
-        Rejected
-    }
-
-    enum TrxType {
-        Withdraw,
-        SwapTokens,
-        UpdateToken
-    }
-
     address cbiToken; // cbi token
     address usdtToken; // usdt token
     address public admin; // contract admin address
-    uint256 public quorum;
-    address[] public admins;
-    uint256 public withdrawTrxCounter;
-    uint256 public trxCounter;
 
     struct Token {
         bool allowed;
@@ -43,70 +27,9 @@ contract CBI_Treasury is Ownable {
         address tokenAddress;
     }
 
-    struct MultiSigTransaction {
-        uint trxType;
-        uint trxId;
-        string trxArguments;
-        uint confirmations;
-        uint rejects;
-        uint trxTimestamp;
-    }
-
-    struct WithdrawTrx {
-        address token;
-        uint256 amount;
-        address recipient;
-    }
-
-    struct SwapTrx {
-        address inputToken; 
-        address outputToken;
-        uint256 amount;
-        address user;
-        string userId;
-    }
-
-    struct UpdateTokenTrx {
-        address token; 
-        bool allowed;
-        uint swapLimit;
-        uint withdrawLimit;
-        address newAdmin;
-    }
-
-    struct TrxArgs {
-        address token; 
-        bool allowed;
-        uint swapLimit;
-        uint withdrawLimit;
-        address newAdmin;
-        address inputToken; 
-        address outputToken;
-        uint256 amount;
-        address user;
-        string userId;
-    }
-
-
-    struct TrxData {
-        uint256 trxId;
-        uint256 confirmations;
-        uint256 rejects;
-        TrxStatus status;
-        address creator;
-        uint256 trxTimestamp;
-        address[] votes;
-        WithdrawTrx withdrawArgs;
-        SwapTrx swapTokensArgs;
-        UpdateTokenTrx updateArgs;
-    }
-
-    mapping(uint256 => WithdrawTrx) public withdrawTrxData;
-    mapping(uint256 => TrxData) public trxData;
     mapping(address => Token) public allowedTokensInfo; // allowed tokens in the treasury
     mapping(address => uint256) public withdrawNonces; // withdrawal nonces
     mapping(address => uint256) public swapNonces; // swap nonces
-
 
     bytes32 public immutable DOMAIN_SEPARATOR;
     bytes32 public immutable WITHDRAW_TYPEHASH =
@@ -138,11 +61,7 @@ contract CBI_Treasury is Ownable {
         address user,
         string indexed userId
     );
-    event WithdrawMultiSig(
-        address indexed token,
-        uint256 indexed amount,
-        address  indexed recipient
-    );
+
     event UpdateAdmin(address newAdmin);
     event UpdateAllowedToken(
         address token, 
@@ -157,22 +76,13 @@ contract CBI_Treasury is Ownable {
         address _swapRouter, // SpookySwapRouter address
         address _cbiToken,   // CBI token address
         address _usdtToken,  // USDT token address
-        address _admin,      // admin address
-        address[] memory _admins,
-        uint256 _quorum
+        address _admin      // admin address
     ) {
         require(Address.isContract(_swapRouter), "CBI_Treasury: Not contract");
         require(Address.isContract(_cbiToken), "CBI_Treasury: Not contract");
         require(Address.isContract(_usdtToken), "CBI_Treasury: Not contract");
         require(_admin != address(0), "CBI_Treasury: Null address");
-        require(_admins.length > 0, "Zero length");
-        require(_quorum > 0, "Mast greate");
 
-        for(uint i; i <= _admins.length; i++) {
-            require(_admins[i] != address(0), "admins zero address");
-        }
-        admins = _admins;
-        quorum = _quorum;
         swapRouter = IUniswapV2Router(_swapRouter);
         
         cbiToken = _cbiToken;
@@ -217,22 +127,12 @@ contract CBI_Treasury is Ownable {
         _;
     }
 
-    modifier onlyQuorum {
-        bool exist = false;
-        for (uint256 i; i <= admins.length; i++ ) {
-            if(msg.sender == admins[i]){
-              exist = true;
-              break;  
-            } 
-        }
-        require(exist, "CBI_Treasury: Caller is not the admin");
-        _;
-    }
 
     //==================================== CBI_Treasury external functions ==============================================================
 
     /**
     @dev The function performs the replenishment allowed tokens on this contract.
+    @param token replenish token address
     @param userId user ID in CBI system.
     @param amount token amount.
     */
@@ -388,9 +288,6 @@ contract CBI_Treasury is Ownable {
         );
         emit SwapTokens(inputToken, outputToken, amount, swapAmounts[1], user, userId);
     }
-
-
-
     
     /**
     @dev Helper internal function for withdrawing allowed tokens from Treasury contract.
@@ -416,27 +313,8 @@ contract CBI_Treasury is Ownable {
         emit Withdraw(token,amount, user, userId);
     }
 
-    function _withdrawMultiSig(address token, uint256 amount, address recipient) internal {
-        require(amount > 0, "CBI_Treasury: Zero amount");
-        require(token != address(0) && recipient != address(0), "CBI_Treasury: Zero amount");
-        require(IERC20(token).balanceOf(address(this)) >= amount, "CBI_Treasury: Not enough token balance");
-
-        IERC20(token).safeTransfer(recipient, amount);
-        emit WithdrawMultiSig(token, amount, recipient);
-    }
-
-
     // ============================================ Owner & Admin functions ===============================================
-    /**
-    @dev The function performs the purchase or sell allowed tokens by exchanging 
-    On SpookySwapRouter.Only the owner or admin can call.
-    @param amount USDT token amount.
-    @param userId user ID in CBI system.
-    */
-    function swapTokens(address inputToken, address outputToken, uint256 amount, address user, string memory userId) external onlyAdmin {
-        _swapTokens(inputToken, outputToken, amount, user, userId);
-    }
-
+    
     /**
     @dev Reserve external function for withdrawing allowed tokens from the  Treasury. 
     Only the owner or admin can call.
@@ -453,113 +331,20 @@ contract CBI_Treasury is Ownable {
         _withdraw(token, amount, user, userId);
     }
 
-    function createMultiSigTrx( uint256 trxTypeIndex, TrxArgs memory args) external onlyQuorum {
-        TrxType trxType = TrxType(trxTypeIndex);
-        TrxData storage trxInfo = trxData[trxCounter];
-        
-
-        if(trxType == TrxType.Withdraw) {
-
-            WithdrawTrx memory withdrawTrx = WithdrawTrx({
-                amount: args.amount,
-                recipient: args.user,
-                token: args.token
-            });
-                
-            trxInfo.withdrawArgs = withdrawTrx;
-
-        } else if(trxType == TrxType.SwapTokens) {
-            SwapTrx memory swapTrx = SwapTrx({
-                inputToken: args.inputToken,
-                outputToken: args.outputToken,
-                amount: args.amount,
-                user: args.user,
-                userId: args.userId
-            });
-
-            trxInfo.swapTokensArgs = swapTrx;
-
-        } else if(trxType == TrxType.UpdateToken) {
-
-             UpdateTokenTrx memory updateTokenTrx = UpdateTokenTrx({
-                token: args.token,
-                allowed: args.allowed,
-                swapLimit: args.swapLimit,
-                withdrawLimit: args.withdrawLimit,
-                newAdmin: args.newAdmin
-             });
-                       
-            trxInfo.updateArgs = updateTokenTrx;
-        }
-
-        trxInfo.confirmations += 1;
-        trxInfo.votes.push(msg.sender);
-        trxInfo.trxId = trxCounter;
-        trxInfo.creator = msg.sender;
-        trxInfo.status = TrxStatus.Pending;
-        trxInfo.trxTimestamp = block.timestamp;
-        trxCounter++;
-        
-    }
-
-    function isVoted (uint256 trxId) public view returns (bool) {
-        TrxData storage trxInfo = trxData[trxId];
-
-        bool voted = false;
-        for (uint256 i; i <= trxInfo.votes.length; i++ ) {
-            if(msg.sender == trxInfo.votes[i]){
-              voted = true;
-              break;  
-            } 
-        }
-        return voted;
-    }
-
-    // function _createWithdrawTrx(address token, uint256 amount, address recipient) internal {
-    //         WithdrawTrx storage trxData = withdrawTrxData[withdrawTrxCounter];
-    //         trxData.token = token;
-    //         trxData.amount = amount;
-    //         trxData.recipient = recipient;
-    //         trxData.trxId = withdrawTrxCounter;
-    //         trxData.creator = msg.sender;
-    //         trxData.trxTimestamp = block.timestamp;
-    //         trxData.confirmations += 1;
-    //         trxData.status = TrxStatus.Pending;
-    // }
-
-    function _addConfirmation(uint256 trxId) internal {
-        TrxData storage trxInfo = trxData[trxId];
-        trxInfo.confirmations += 1;
-    }
-
-    function _rejectTrx(uint256 trxId) internal {
-        TrxData storage trxInfo = trxData[trxId];
-        trxInfo.rejects += 1;
-    }
-
-    function withdrawMultiSig(uint256 trxId, bool confirm) external onlyQuorum {
-        TrxData storage trxInfo = trxData[trxId];
-        require(trxInfo.status == TrxStatus.Pending, "trx end");
-        require(!isVoted(trxId), "You add vote");
-        
-
-        if(confirm) {
-            _addConfirmation(trxId);
-        } else {
-            _rejectTrx(trxId);
-        }
-
-        if(trxInfo.confirmations == quorum) {
-            trxInfo.status = TrxStatus.Confirmed;
-           _withdrawMultiSig(trxInfo.withdrawArgs.token, trxInfo.withdrawArgs.amount, trxInfo.withdrawArgs.recipient);
-        }
-
-
-        if((admins.length - trxInfo.rejects < quorum)) {
-            trxInfo.status = TrxStatus.Rejected;
-        }
-
-        
+    /**
+    @dev The function performs the purchase or sell allowed tokens by exchanging 
+    On SpookySwapRouter.Only the owner or admin can call.
+    @param amount USDT token amount.
+    @param userId user ID in CBI system.
+    */
+    function swapTokens(
+        address inputToken, 
+        address outputToken, 
+        uint256 amount, 
+        address user, 
+        string memory userId
+    ) external onlyAdmin {
+        _swapTokens(inputToken, outputToken, amount, user, userId);
     }
 
     /** 
@@ -584,7 +369,7 @@ contract CBI_Treasury is Ownable {
     @param swapLimit limit for purchase or sell
     @param withdrawLimit limit for token withdraw
     */
-    function updateAllowedToken(address token, bool allowed, uint swapLimit, uint withdrawLimit) external onlyAdmin {
+    function updateAllowedToken(address token, bool allowed, uint swapLimit, uint withdrawLimit) external onlyOwner {
         require(Address.isContract(token), "CBI_Treasury: Not contract");
         Token storage tokenInfo = allowedTokensInfo[token];
         if(tokenInfo.tokenAddress == address(0)) {
@@ -596,43 +381,6 @@ contract CBI_Treasury is Ownable {
         tokenInfo.swapLimit = swapLimit;
         tokenInfo.withdrawLimit = withdrawLimit;
 
-        emit UpdateAllowedToken(token, swapLimit, withdrawLimit, allowed);
-    }
-
-     /**
-    @dev Reserve function for rescue others tokens. Only the owner can call.
-    @param amount token amount.
-    @param tokenAddress token address.
-    @param to address for withdrawal.
-    */
-    function rescue(
-        address to,
-        address tokenAddress,
-        uint256 amount
-    ) external onlyOwner {
-        require(
-            to != address(0),
-            "CBI_Rescue: Cannot rescue to the zero address"
-        );
-        require(amount > 0, "CBI_Rescue: Cannot rescue 0");
-
-        IERC20(tokenAddress).safeTransfer(to, amount);
-        emit RescueToken(to, address(tokenAddress), amount);
-    }
-
-    /**
-    @dev Reserve function for rescue FTM. Only the owner can call.
-    @param amount FTM amount.
-    @param to address for withdrawal.
-    */
-    function rescueFTM(address payable to, uint256 amount) external onlyOwner {
-        require(
-            to != address(0),
-            "CBI_Rescue: Cannot rescue to the zero address"
-        );
-        require(amount > 0, "CBI_Rescue: Cannot rescue 0");
-
-        to.transfer(amount);
-        emit RescueFTM(to, amount);
+        emit UpdateAllowedToken(token, swapLimit, withdrawLimit, allowed);  
     }
 }

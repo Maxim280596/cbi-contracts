@@ -121,6 +121,10 @@ const ADMIN_PK =
   "59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d";
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
+function address(n) {
+  return `0x${n.toString(16).padStart(40, "0")}`;
+}
+
 module.exports = {
   EIP712Domain,
   WithdrawBySign,
@@ -130,4 +134,5 @@ module.exports = {
   ROUTER_ADDRESS,
   MAX_UINT,
   ADMIN_PK,
+  address,
 };
