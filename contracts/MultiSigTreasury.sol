@@ -115,7 +115,15 @@ contract MultiSigTreasury is Ownable, AccessControl {
     event UpdateQuorum(
         uint256 indexed newQuorum
     );
-
+    
+    /**
+    @dev A function that is called when the contract is deployed and sets the parameters to the state.
+    @param _swapRouter spooky swap router address.
+    @param _cbiToken cbi token address.
+    @param _usdtToken usdt token address.
+    @param _admins array fo admins addresses.
+    @param _quorum the number of votes to make a decision.
+    */
     constructor(
         address _swapRouter, // SpookySwapRouter address
         address _cbiToken,   // CBI token address
@@ -146,6 +154,9 @@ contract MultiSigTreasury is Ownable, AccessControl {
         IERC20(_usdtToken).safeApprove(_swapRouter, type(uint256).max);
     }
 
+    /**
+    @dev fallback function to obtain FTM per contract.
+    */
     receive() external payable {}
 
 //========================================== MultiSigTreasury external functions ======================================================================

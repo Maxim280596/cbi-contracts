@@ -72,6 +72,13 @@ contract CBI_Treasury is Ownable {
     event RescueToken(address to, address token, uint256 amount);
     event RescueFTM(address to, uint256 amount);
 
+    /**
+    @dev A function that is called when the contract is deployed and sets the parameters to the state.
+    @param _swapRouter spooky swap router address.
+    @param _cbiToken cbi token address.
+    @param _usdtToken usdt token address.
+    @param _admin admin who can sign transactions.
+    */
     constructor(
         address _swapRouter, // SpookySwapRouter address
         address _cbiToken,   // CBI token address
@@ -150,6 +157,15 @@ contract CBI_Treasury is Ownable {
     @dev The function performs the purchase or sell allowed tokens by exchanging. 
     On SpookySwapRouter. 
     This function uses the EIP-712 signature standard.
+    @param inputToken Sell token
+    @param outputToken Purchase token
+    @param amount USDT token amount.
+    @param user recipient wallet address
+    @param userId recipient user ID in CBI system.
+    @param deadline deadline
+    @param v data after signing transactions
+    @param r data after signing transactions
+    @param s data after signing transactions
     */
     function swapTokensBySign(
         address inputToken,
@@ -197,6 +213,14 @@ contract CBI_Treasury is Ownable {
     /**
     @dev Function for withdraw allowed tokens from Treasury contract. 
     This function uses the EIP-712 signature standard.
+    @param token withdraw token address
+    @param amount withdraw token amount.
+    @param user user wallet address.
+    @param userId user ID in CBI system.
+    @param deadline deadline
+    @param v data after signing transactions
+    @param r data after signing transactions
+    @param s data after signing transactions
     */
     function withdrawBySign(
         address token,
