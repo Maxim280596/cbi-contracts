@@ -7,9 +7,12 @@
     "coverage-treasury": "npx hardhat coverage --network hardhat --testfiles ./test/treasury.js  --solcoverjs ./.solcover.js",
     "clean": "rm -r artifacts cache",
     "flat-treasury": "npx hardhat flatten ./contracts/CBI_Treasury.sol > ./contracts/FlatTreasury.sol",
+    "flat-multi": "npx hardhat flatten ./contracts/MultiSigTreasury.sol > ./contracts/FlatMulti.sol",
     "flat-cbi": "npx hardhat flatten ./contracts/CBI_ERC20.sol > ./contracts/FlatToken.sol",
     "deploy-treasury-testnet": "npx hardhat run scripts/deployTreasury.js --network fantomTestnet",
     "deploy-treasury-mainnet": "npx hardhat run scripts/deployTreasury.js --network fantomMainnet",
+    "deploy-multisig-testnet": "npx hardhat run scripts/deployMultiSigTreasury.js --network fantomTestnet",
+    "deploy-multisig-mainnet": "npx hardhat run scripts/deployMultiSigTreasury.js --network fantomMainnet",
     "deploy-cbi-testnet": "npx hardhat run scripts/deployCbiToken.js --network fantomTestnet",
     "deploy-cbi-mainnet": "npx hardhat run scripts/deployCbiToken.js --network fantomMainnet"
   },

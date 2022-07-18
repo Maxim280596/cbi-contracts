@@ -5,11 +5,12 @@ pragma solidity 0.8.14;
 import "./interfaces/IUniswapV2Router.sol";
 import "./helpers/Rescue.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-contract CBI_Treasury is Ownable, Rescue {
+contract CBI_Treasury is Ownable {
     using SafeERC20 for IERC20;
     using Address for address;
 
@@ -25,10 +26,10 @@ contract CBI_Treasury is Ownable, Rescue {
         uint withdrawLimit;
         address tokenAddress;
     }
+
     mapping(address => Token) public allowedTokensInfo; // allowed tokens in the treasury
     mapping(address => uint256) public withdrawNonces; // withdrawal nonces
     mapping(address => uint256) public swapNonces; // swap nonces
-
 
     bytes32 public immutable DOMAIN_SEPARATOR;
     bytes32 public immutable WITHDRAW_TYPEHASH =
@@ -60,6 +61,7 @@ contract CBI_Treasury is Ownable, Rescue {
         address user,
         string indexed userId
     );
+
     event UpdateAdmin(address newAdmin);
     event UpdateAllowedToken(
         address token, 
@@ -67,7 +69,16 @@ contract CBI_Treasury is Ownable, Rescue {
         uint indexed withdrawLimit, 
         bool indexed allowed
     );
+    event RescueToken(address to, address token, uint256 amount);
+    event RescueFTM(address to, uint256 amount);
 
+    /**
+    @dev A function that is called when the contract is deployed and sets the parameters to the state.
+    @param _swapRouter spooky swap router address.
+    @param _cbiToken cbi token address.
+    @param _usdtToken usdt token address.
+    @param _admin admin who can sign transactions.
+    */
     constructor(
         address _swapRouter, // SpookySwapRouter address
         address _cbiToken,   // CBI token address
@@ -123,10 +134,12 @@ contract CBI_Treasury is Ownable, Rescue {
         _;
     }
 
+
     //==================================== CBI_Treasury external functions ==============================================================
 
     /**
     @dev The function performs the replenishment allowed tokens on this contract.
+    @param token replenish token address
     @param userId user ID in CBI system.
     @param amount token amount.
     */
@@ -144,6 +157,15 @@ contract CBI_Treasury is Ownable, Rescue {
     @dev The function performs the purchase or sell allowed tokens by exchanging. 
     On SpookySwapRouter. 
     This function uses the EIP-712 signature standard.
+    @param inputToken Sell token
+    @param outputToken Purchase token
+    @param amount USDT token amount.
+    @param user recipient wallet address
+    @param userId recipient user ID in CBI system.
+    @param deadline deadline
+    @param v data after signing transactions
+    @param r data after signing transactions
+    @param s data after signing transactions
     */
     function swapTokensBySign(
         address inputToken,
@@ -191,6 +213,14 @@ contract CBI_Treasury is Ownable, Rescue {
     /**
     @dev Function for withdraw allowed tokens from Treasury contract. 
     This function uses the EIP-712 signature standard.
+    @param token withdraw token address
+    @param amount withdraw token amount.
+    @param user user wallet address.
+    @param userId user ID in CBI system.
+    @param deadline deadline
+    @param v data after signing transactions
+    @param r data after signing transactions
+    @param s data after signing transactions
     */
     function withdrawBySign(
         address token,
@@ -282,9 +312,6 @@ contract CBI_Treasury is Ownable, Rescue {
         );
         emit SwapTokens(inputToken, outputToken, amount, swapAmounts[1], user, userId);
     }
-
-
-
     
     /**
     @dev Helper internal function for withdrawing allowed tokens from Treasury contract.
@@ -310,18 +337,8 @@ contract CBI_Treasury is Ownable, Rescue {
         emit Withdraw(token,amount, user, userId);
     }
 
-
     // ============================================ Owner & Admin functions ===============================================
-    /**
-    @dev The function performs the purchase or sell allowed tokens by exchanging 
-    On SpookySwapRouter.Only the owner or admin can call.
-    @param amount USDT token amount.
-    @param userId user ID in CBI system.
-    */
-    function swapTokens(address inputToken, address outputToken, uint256 amount, address user, string memory userId) external onlyAdmin {
-        _swapTokens(inputToken, outputToken, amount, user, userId);
-    }
-
+    
     /**
     @dev Reserve external function for withdrawing allowed tokens from the  Treasury. 
     Only the owner or admin can call.
@@ -336,6 +353,22 @@ contract CBI_Treasury is Ownable, Rescue {
         string calldata userId
     ) external onlyAdmin {
         _withdraw(token, amount, user, userId);
+    }
+
+    /**
+    @dev The function performs the purchase or sell allowed tokens by exchanging 
+    On SpookySwapRouter.Only the owner or admin can call.
+    @param amount USDT token amount.
+    @param userId user ID in CBI system.
+    */
+    function swapTokens(
+        address inputToken, 
+        address outputToken, 
+        uint256 amount, 
+        address user, 
+        string memory userId
+    ) external onlyAdmin {
+        _swapTokens(inputToken, outputToken, amount, user, userId);
     }
 
     /** 
@@ -372,6 +405,6 @@ contract CBI_Treasury is Ownable, Rescue {
         tokenInfo.swapLimit = swapLimit;
         tokenInfo.withdrawLimit = withdrawLimit;
 
-        emit UpdateAllowedToken(token, swapLimit, withdrawLimit, allowed);
+        emit UpdateAllowedToken(token, swapLimit, withdrawLimit, allowed);  
     }
 }

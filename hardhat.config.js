@@ -14,6 +14,8 @@ module.exports = {
         url: "https://rpc.testnet.fantom.network/",
         enabled: true,
         blockNumber: 9148484,
+        chainId: 4002,
+        gasPrice: 250000000000,
         accounts,
       },
     },
@@ -35,6 +37,9 @@ module.exports = {
           optimizer: {
             enabled: true,
             runs: 200,
+            details: {
+              yul: true,
+            },
           },
         },
       },

@@ -73,7 +73,7 @@ describe("CBI_Treasury tests", () => {
 
     await cbiToken.approve(router.address, MAX_UINT);
     await usdtToken.approve(router.address, MAX_UINT);
-
+    console.log(1);
     await router.addLiquidity(
       usdtToken.address,
       cbiToken.address,
@@ -84,6 +84,7 @@ describe("CBI_Treasury tests", () => {
       deployer.address,
       nowInSeconds() + 1000
     );
+    console.log(2);
 
     for (let i = 0; i <= accounts.length - 1; i++) {
       await cbiToken.transfer(accounts[i].address, "10000000000000000000000");
@@ -91,6 +92,7 @@ describe("CBI_Treasury tests", () => {
       await testToken.transfer(accounts[i].address, "10000000000");
     }
   });
+
   describe("deploy tests", () => {
     it("should be reverted deploy if admin address equal zero address", async () => {
       await expect(
